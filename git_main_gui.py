@@ -11,8 +11,8 @@ class GitBashGUI:
         self.root.title("快速 Git Bash 工具 - Python 3.11.9 + ttk")
         
         # 初始窗口大小（增加宽度以适应双栏布局）
-        window_width = 1000
-        window_height = 600
+        window_width = 1200
+        window_height = 700
         self.root.geometry(f"{window_width}x{window_height}")
         self.root.minsize(800, 500)
         
@@ -388,7 +388,7 @@ class GitBashGUI:
 
     def create_custom_command_area(self, parent):
         """创建自定义命令输入和执行区域"""
-        frame = ttk.LabelFrame(parent, text="✏️ 自定义 Git 命令")
+        frame = ttk.LabelFrame(parent, text="✏️自定义 Git 命令")
         frame.pack(padx=0, pady=5, fill=tk.X)
         
         # 命令输入框（多行）

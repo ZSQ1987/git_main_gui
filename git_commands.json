@@ -1,5 +1,15 @@
 {
-  "create_commands": {},
+  "create_commands": {
+    "初始化仓库": "git init",
+    "添加SSH仓库": "git remote add origin git@",
+    "验证SSH连接": "git remote -v",
+    "首次添加": "git add .",
+    "首次提交": "git commit -m \"首次提交\"",
+    "处理分支": "git branch -M main",
+    "查看状态": "git status",
+    "合并": "git pull origin main",
+    "推送": "git push -u origin main"
+  },
   "update_commands": {
     "添加": "git add .",
     "提交": "git commit -m \"\"",
