@@ -14,6 +14,7 @@
     "添加": "git add .",
     "提交": "git commit -m \"\"",
     "拉取": "git pull",
-    "推送": "git push"
+    "推送": "git push",
+    "删除文件": "git rm"
   }
 }

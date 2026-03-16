@@ -30,10 +30,13 @@ Desktop.ini
 $RECYCLE.BIN
 *.tmp
 *.temp
+*.ps1
+*.zip
 
 # 日志文件（如果你的GUI有日志输出）
 *.log
 logs/
+*.ico
 
 # IDE/编辑器配置（比如VSCode/PyCharm）
 .idea/

@@ -10,10 +10,12 @@ class GitBashGUI:
         self.root = root
         self.root.title("快速 Git Bash 工具 - Python 3.11.9 + ttk")
         
+        # 先隐藏窗口，等所有UI元素初始化完成后再显示
+        self.root.withdraw()
+        
         # 初始窗口大小（增加宽度以适应双栏布局）
         window_width = 1200
-        window_height = 700
-        self.root.geometry(f"{window_width}x{window_height}")
+        window_height = 800
         self.root.minsize(800, 500)
         
         # 计算居中位置
@@ -21,7 +23,24 @@ class GitBashGUI:
         screen_height = self.root.winfo_screenheight()
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
+        
+        # 设置窗口位置和大小
         self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        # 设置窗口图标
+        try:
+            # 尝试获取图标文件路径，支持开发环境和打包环境
+            import sys
+            import os
+            if hasattr(sys, '_MEIPASS'):
+                # 打包环境
+                icon_path = os.path.join(sys._MEIPASS, "app_ico.ico")
+            else:
+                # 开发环境
+                icon_path = "app_ico.ico"
+            self.root.iconbitmap(icon_path)
+        except:
+            pass
         
         # 初始化工作目录
         self.working_dir = os.getcwd()
@@ -52,6 +71,9 @@ class GitBashGUI:
         
         # 右侧界面：显示自定义GUI命令
         self.create_quick_commands(self.right_frame)
+        
+        # 延迟显示窗口，确保mainloop已启动，避免白屏
+        self.root.after(100, self.root.deiconify)
         
         # 绑定窗口关闭事件，保存命令
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -426,15 +448,20 @@ class GitBashGUI:
 
     def append_output(self, text, is_error=False):
         """向输出区追加文本（区分正常/错误信息）"""
-        self.output_text.config(state=tk.NORMAL)
-        if is_error:
-            self.output_text.insert(tk.END, f"❌ {text}\n", "error")
-        else:
-            self.output_text.insert(tk.END, f"✅ {text}\n", "normal")
-        self.output_text.tag_config("error", foreground="red")
-        self.output_text.tag_config("normal", foreground="black")
-        self.output_text.see(tk.END)
-        self.output_text.config(state=tk.DISABLED)
+        # 使用after方法确保在主线程中更新UI
+        def update_ui():
+            self.output_text.config(state=tk.NORMAL)
+            if is_error:
+                self.output_text.insert(tk.END, f"❌ {text}\n", "error")
+            else:
+                self.output_text.insert(tk.END, f"✅ {text}\n", "normal")
+            self.output_text.tag_config("error", foreground="red")
+            self.output_text.tag_config("normal", foreground="black")
+            self.output_text.see(tk.END)
+            self.output_text.config(state=tk.DISABLED)
+        
+        # 确保在主线程中执行UI更新
+        self.root.after(0, update_ui)
 
     def clear_output(self):
         """清空输出区内容"""
@@ -449,64 +476,113 @@ class GitBashGUI:
             self.append_output("请输入要执行的Git命令！", is_error=True)
             return
         
-        # 拼接Git Bash执行命令（Windows下）
-        possible_paths = [
-            "C:\\Program Files\\Git\\bin\\bash.exe",
-            "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
-            "D:\\Program Files\\Git\\bin\\bash.exe",
-            "D:\\Program Files (x86)\\Git\\bin\\bash.exe"
-        ]
+        # 创建执行中消息框
+        progress_window = tk.Toplevel(self.root)
+        progress_window.title("执行中")
+        progress_window.geometry("300x100")
+        progress_window.resizable(False, False)
+        progress_window.transient(self.root)
+        progress_window.grab_set()
         
-        git_bash_path = None
-        for path in possible_paths:
-            if os.path.exists(path):
-                git_bash_path = path
-                break
+        # 居中显示
+        root_x = self.root.winfo_x()
+        root_y = self.root.winfo_y()
+        root_width = self.root.winfo_width()
+        root_height = self.root.winfo_height()
         
-        if not git_bash_path:
-            git_bash_path = "bash.exe"
+        window_width = 300
+        window_height = 100
         
-        try:
-            self.append_output(f"开始执行命令：{command}（工作目录：{self.working_dir}")
-            # 执行命令并实时捕获输出
-            process = subprocess.Popen(
-                [git_bash_path, "-c", command],
-                cwd=self.working_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.PIPE,
-                encoding="utf-8"
-            )
+        x = root_x + (root_width - window_width) // 2
+        y = root_y + (root_height - window_height) // 2
+        
+        progress_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        # 添加消息标签
+        message_label = ttk.Label(progress_window, text="正在进行中 ....", font=("SimHei", 12))
+        message_label.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        message_label.config(anchor=tk.CENTER)
+        
+        # 确保窗口内容正确显示
+        progress_window.update()
+        
+        # 强制更新UI
+        self.root.update_idletasks()
+        
+        # 导入线程模块
+        import threading
+        
+        # 定义命令执行函数
+        def run_command():
+            # 拼接Git Bash执行命令（Windows下）
+            possible_paths = [
+                "C:\\Program Files\\Git\\bin\\bash.exe",
+                "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
+                "D:\\Program Files\\Git\\bin\\bash.exe",
+                "D:\\Program Files (x86)\\Git\\bin\\bash.exe"
+            ]
             
-            # 实时读取输出
-            while True:
-                stdout_line = process.stdout.readline()
-                stderr_line = process.stderr.readline()
-                
-                if not stdout_line and not stderr_line and process.poll() is not None:
+            git_bash_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    git_bash_path = path
                     break
-                
-                if stdout_line:
-                    self.append_output(stdout_line.strip(), is_error=False)
-                if stderr_line:
-                    self.append_output(stderr_line.strip(), is_error=True)
             
-            # 检查返回码
-            if process.returncode == 0:
-                self.append_output(f"命令执行成功！返回码：{process.returncode}")
-            else:
-                self.append_output(f"命令执行失败！返回码：{process.returncode}", is_error=True)
-        except subprocess.TimeoutExpired:
-            self.append_output(f"命令执行超时（30秒）！", is_error=True)
-        except FileNotFoundError:
-            self.append_output(f"❌ 未找到Git Bash！", is_error=True)
-            self.append_output(f"请按照以下步骤操作：", is_error=True)
-            self.append_output(f"1. 从 https://git-scm.com/downloads 下载并安装Git", is_error=True)
-            self.append_output(f"2. 安装时选择'Add Git to PATH'选项", is_error=True)
-            self.append_output(f"3. 重启电脑后再运行本工具", is_error=True)
-            self.append_output(f"4. 若已安装Git但仍报错，请手动修改代码中的possible_paths列表", is_error=True)
-        except Exception as e:
-            self.append_output(f"执行命令时发生异常：{str(e)}", is_error=True)
+            if not git_bash_path:
+                git_bash_path = "bash.exe"
+            
+            try:
+                self.append_output(f"开始执行命令：{command}（工作目录：{self.working_dir}")
+                # 执行命令并实时捕获输出
+                process = subprocess.Popen(
+                    [git_bash_path, "-c", command],
+                    cwd=self.working_dir,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    stdin=subprocess.PIPE,
+                    encoding="utf-8",
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                
+                # 实时读取输出
+                while True:
+                    stdout_line = process.stdout.readline()
+                    stderr_line = process.stderr.readline()
+                    
+                    if not stdout_line and not stderr_line and process.poll() is not None:
+                        break
+                    
+                    if stdout_line:
+                        line = stdout_line.strip()
+                        self.append_output(line, is_error=False)
+                    
+                    if stderr_line:
+                        self.append_output(stderr_line.strip(), is_error=True)
+                
+                # 检查返回码
+                if process.returncode == 0:
+                    self.append_output(f"命令执行成功！返回码：{process.returncode}")
+                else:
+                    self.append_output(f"命令执行失败！返回码：{process.returncode}", is_error=True)
+            except subprocess.TimeoutExpired:
+                self.append_output(f"命令执行超时（30秒）！", is_error=True)
+            except FileNotFoundError:
+                self.append_output(f"❌ 未找到Git Bash！", is_error=True)
+                self.append_output(f"请按照以下步骤操作：", is_error=True)
+                self.append_output(f"1. 从 https://git-scm.com/downloads 下载并安装Git", is_error=True)
+                self.append_output(f"2. 安装时选择'Add Git to PATH'选项", is_error=True)
+                self.append_output(f"3. 重启电脑后再运行本工具", is_error=True)
+                self.append_output(f"4. 若已安装Git但仍报错，请手动修改代码中的possible_paths列表", is_error=True)
+            except Exception as e:
+                self.append_output(f"执行命令时发生异常：{str(e)}", is_error=True)
+            finally:
+                # 关闭执行中消息框
+                self.root.after(0, progress_window.destroy)
+        
+        # 在新线程中执行命令
+        thread = threading.Thread(target=run_command)
+        thread.daemon = True
+        thread.start()
 
     def save_commands(self):
         """保存命令到JSON文件"""
