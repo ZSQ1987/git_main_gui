@@ -468,24 +468,34 @@ class GitBashGUI:
         
         try:
             self.append_output(f"开始执行命令：{command}（工作目录：{self.working_dir}")
-            # 执行命令并捕获输出
-            result = subprocess.run(
+            # 执行命令并实时捕获输出
+            process = subprocess.Popen(
                 [git_bash_path, "-c", command],
                 cwd=self.working_dir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 stdin=subprocess.PIPE,
-                encoding="utf-8",
-                timeout=30
+                encoding="utf-8"
             )
-            if result.stdout:
-                self.append_output(f"执行结果：\n{result.stdout}")
-            if result.stderr:
-                self.append_output(f"错误信息：\n{result.stderr}", is_error=True)
-            if result.returncode == 0:
-                self.append_output(f"命令执行成功！返回码：{result.returncode}")
+            
+            # 实时读取输出
+            while True:
+                stdout_line = process.stdout.readline()
+                stderr_line = process.stderr.readline()
+                
+                if not stdout_line and not stderr_line and process.poll() is not None:
+                    break
+                
+                if stdout_line:
+                    self.append_output(stdout_line.strip(), is_error=False)
+                if stderr_line:
+                    self.append_output(stderr_line.strip(), is_error=True)
+            
+            # 检查返回码
+            if process.returncode == 0:
+                self.append_output(f"命令执行成功！返回码：{process.returncode}")
             else:
-                self.append_output(f"命令执行失败！返回码：{result.returncode}", is_error=True)
+                self.append_output(f"命令执行失败！返回码：{process.returncode}", is_error=True)
         except subprocess.TimeoutExpired:
             self.append_output(f"命令执行超时（30秒）！", is_error=True)
         except FileNotFoundError:
