@@ -25,29 +25,9 @@ class GitBashGUI:
         # 初始化工作目录
         self.working_dir = os.getcwd()
         
-        # 初始化命令字典
-        self.create_commands = {
-            "初始化仓库 (git init)": "git init",
-            "克隆仓库 (git clone)": "git clone ",
-            "创建分支 (git checkout -b)": "git checkout -b new_branch",
-            "添加远程仓库 (git remote add)": "git remote add origin ",
-            "创建README.md": "echo '# Project Title\n\nDescription of the project.' > README.md",
-            "创建Python .gitignore": "echo '# Python\n__pycache__/\n*.py[cod]\n*$py.class\n\n# Environment\n.env\n.venv\nvenv/\nenv/\n\n# IDE\n.vscode/\n.idea/\n*.swp\n*.swo\n*~\n\n# OS\n.DS_Store\nThumbs.db' > .gitignore",
-            "创建MIT License": "echo '# MIT License\n\nCopyright (c) [year] [fullname]\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.' > LICENSE"
-        }
-        
-        self.update_commands = {
-            "查看状态 (git status)": "git status",
-            "添加所有文件 (git add .)": "git add .",
-            "提交（需补信息）": "git commit -m \"\"",
-            "推送到远程 (git push)": "git push",
-            "拉取远程代码 (git pull)": "git pull",
-            "查看分支 (git branch)": "git branch",
-            "切换分支 (git checkout)": "git checkout main",
-            "查看远程仓库 (git remote -v)": "git remote -v",
-            "首次推送 (git push -u)": "git push -u origin main",
-            "上传main分支": "git push origin main"
-        }
+        # 初始化命令字典（空，全手动添加）
+        self.create_commands = {}
+        self.update_commands = {}
         
         # 主框架
         main_frame = ttk.Frame(self.root, padding=(10, 10, 10, 10))
@@ -157,49 +137,65 @@ class GitBashGUI:
         create_frame = ttk.LabelFrame(parent, text="📁 创建相关命令")
         create_frame.pack(padx=0, pady=5, fill=tk.X)
         
-        # 排版创建命令按钮（每行2个）
-        row, col = 0, 0
+        # 排版创建命令按钮（每行1个）
+        row = 0
         for btn_text, cmd in self.create_commands.items():
-            btn = ttk.Button(create_frame, text=btn_text, 
+            # 创建按钮容器
+            btn_frame = ttk.Frame(create_frame)
+            btn_frame.grid(row=row, column=0, padx=5, pady=5, sticky=tk.W+tk.E)
+            
+            # 命令按钮
+            btn = ttk.Button(btn_frame, text=btn_text, 
                              command=lambda c=cmd: self.fill_command(c),
-                             width=20)  # 固定按钮宽度
-            btn.grid(row=row, column=col, padx=5, pady=5, sticky=tk.W+tk.E)
-            col += 1
-            if col >= 2:
-                col = 0
-                row += 1
+                             width=30)  # 固定按钮宽度
+            btn.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+            
+            # 删除按钮
+            delete_btn = ttk.Button(btn_frame, text="删除", 
+                                   command=lambda bt=btn_text: self.delete_command(bt, "create"),
+                                   style="Accent.TButton")
+            delete_btn.pack(side=tk.RIGHT, padx=5)
+            
+            row += 1
         
         # 让列自适应宽度
-        for i in range(2):
-            create_frame.grid_columnconfigure(i, weight=1)
+        create_frame.grid_columnconfigure(0, weight=1)
         
         # 添加命令按钮
         add_create_btn = ttk.Button(create_frame, text="添加命令", command=lambda: self.add_custom_command("create"))
-        add_create_btn.grid(row=row, column=0, columnspan=2, padx=5, pady=5, sticky=tk.W+tk.E)
+        add_create_btn.grid(row=row, column=0, padx=5, pady=5, sticky=tk.W+tk.E)
         
         # 更新命令区域
         update_frame = ttk.LabelFrame(parent, text="🔄 更新相关命令")
         update_frame.pack(padx=0, pady=5, fill=tk.X)
         
-        # 排版更新命令按钮（每行2个）
-        row, col = 0, 0
+        # 排版更新命令按钮（每行1个）
+        row = 0
         for btn_text, cmd in self.update_commands.items():
-            btn = ttk.Button(update_frame, text=btn_text, 
+            # 创建按钮容器
+            btn_frame = ttk.Frame(update_frame)
+            btn_frame.grid(row=row, column=0, padx=5, pady=5, sticky=tk.W+tk.E)
+            
+            # 命令按钮
+            btn = ttk.Button(btn_frame, text=btn_text, 
                              command=lambda c=cmd: self.fill_command(c),
-                             width=20)  # 固定按钮宽度
-            btn.grid(row=row, column=col, padx=5, pady=5, sticky=tk.W+tk.E)
-            col += 1
-            if col >= 2:
-                col = 0
-                row += 1
+                             width=30)  # 固定按钮宽度
+            btn.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+            
+            # 删除按钮
+            delete_btn = ttk.Button(btn_frame, text="删除", 
+                                   command=lambda bt=btn_text: self.delete_command(bt, "update"),
+                                   style="Accent.TButton")
+            delete_btn.pack(side=tk.RIGHT, padx=5)
+            
+            row += 1
         
         # 让列自适应宽度
-        for i in range(2):
-            update_frame.grid_columnconfigure(i, weight=1)
+        update_frame.grid_columnconfigure(0, weight=1)
         
         # 添加命令按钮
         add_update_btn = ttk.Button(update_frame, text="添加命令", command=lambda: self.add_custom_command("update"))
-        add_update_btn.grid(row=row, column=0, columnspan=2, padx=5, pady=5, sticky=tk.W+tk.E)
+        add_update_btn.grid(row=row, column=0, padx=5, pady=5, sticky=tk.W+tk.E)
 
     def add_custom_command(self, command_type):
         """添加自定义命令"""
@@ -272,6 +268,20 @@ class GitBashGUI:
         cancel_btn = ttk.Button(btn_frame, text="取消", command=add_window.destroy)
         cancel_btn.pack(side=tk.RIGHT, padx=5)
 
+    def delete_command(self, btn_text, command_type):
+        """删除自定义命令"""
+        if command_type == "create":
+            if btn_text in self.create_commands:
+                del self.create_commands[btn_text]
+        else:
+            if btn_text in self.update_commands:
+                del self.update_commands[btn_text]
+        
+        # 刷新右侧面板
+        for widget in self.right_frame.winfo_children():
+            widget.destroy()
+        self.create_quick_commands(self.right_frame)
+
     def fill_command(self, command):
         """将快捷命令填充到自定义输入框"""
         self.cmd_text.delete(1.0, tk.END)
@@ -279,7 +289,8 @@ class GitBashGUI:
         # 若为commit命令，将光标定位到引号中间
         if "git commit -m """ in command:
             self.cmd_text.focus()
-            self.cmd_text.icursor(len("git commit -m \"") )
+            pos = len('git commit -m "')
+            self.cmd_text.mark_set(tk.INSERT, f"1.0 + {pos} chars")
 
     def create_custom_command_area(self, parent):
         """创建自定义命令输入和执行区域"""
