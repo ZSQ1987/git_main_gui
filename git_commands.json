@@ -1,0 +1,7 @@
+{
+  "create_commands": {},
+  "update_commands": {
+    "添加": "git add .",
+    "提交": "git commit -m \"\""
+  }
+}

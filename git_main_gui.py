@@ -3,6 +3,7 @@ from tkinter import ttk, scrolledtext, filedialog, messagebox
 import subprocess
 import os
 import sys
+import json
 
 class GitBashGUI:
     def __init__(self, root):
@@ -25,9 +26,13 @@ class GitBashGUI:
         # 初始化工作目录
         self.working_dir = os.getcwd()
         
-        # 初始化命令字典（空，全手动添加）
+        # 命令存储文件路径
+        self.commands_file = os.path.join(self.working_dir, "git_commands.json")
+        
+        # 初始化命令字典并从文件加载
         self.create_commands = {}
         self.update_commands = {}
+        self.load_commands()
         
         # 主框架
         main_frame = ttk.Frame(self.root, padding=(10, 10, 10, 10))
@@ -47,6 +52,9 @@ class GitBashGUI:
         
         # 右侧界面：显示自定义GUI命令
         self.create_quick_commands(self.right_frame)
+        
+        # 绑定窗口关闭事件，保存命令
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def create_dir_selector(self, parent):
         """创建工作目录选择区域"""
@@ -144,17 +152,23 @@ class GitBashGUI:
             btn_frame = ttk.Frame(create_frame)
             btn_frame.grid(row=row, column=0, padx=5, pady=5, sticky=tk.W+tk.E)
             
-            # 命令按钮
-            btn = ttk.Button(btn_frame, text=btn_text, 
-                             command=lambda c=cmd: self.fill_command(c),
-                             width=30)  # 固定按钮宽度
+            # 命令按钮（显示名称和内容）
+            display_text = f"{btn_text}: {cmd}"
+            btn = ttk.Button(btn_frame, text=display_text, 
+                             command=lambda c=cmd: self.fill_command(c))
             btn.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
             
-            # 删除按钮
-            delete_btn = ttk.Button(btn_frame, text="删除", 
+            # 删除按钮（小尺寸）
+            delete_btn = ttk.Button(btn_frame, text="🗑️", width=3, 
                                    command=lambda bt=btn_text: self.delete_command(bt, "create"),
                                    style="Accent.TButton")
             delete_btn.pack(side=tk.RIGHT, padx=5)
+            
+            # 修改按钮（小尺寸，绿色）
+            edit_btn = ttk.Button(btn_frame, text="✏️", width=3, 
+                                 command=lambda bt=btn_text, c=cmd: self.edit_command(bt, c, "create"),
+                                 style="Edit.TButton")
+            edit_btn.pack(side=tk.RIGHT, padx=5)
             
             row += 1
         
@@ -176,17 +190,23 @@ class GitBashGUI:
             btn_frame = ttk.Frame(update_frame)
             btn_frame.grid(row=row, column=0, padx=5, pady=5, sticky=tk.W+tk.E)
             
-            # 命令按钮
-            btn = ttk.Button(btn_frame, text=btn_text, 
-                             command=lambda c=cmd: self.fill_command(c),
-                             width=30)  # 固定按钮宽度
+            # 命令按钮（显示名称和内容）
+            display_text = f"{btn_text}: {cmd}"
+            btn = ttk.Button(btn_frame, text=display_text, 
+                             command=lambda c=cmd: self.fill_command(c))
             btn.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
             
-            # 删除按钮
-            delete_btn = ttk.Button(btn_frame, text="删除", 
+            # 删除按钮（小尺寸）
+            delete_btn = ttk.Button(btn_frame, text="🗑️", width=3, 
                                    command=lambda bt=btn_text: self.delete_command(bt, "update"),
                                    style="Accent.TButton")
             delete_btn.pack(side=tk.RIGHT, padx=5)
+            
+            # 修改按钮（小尺寸，绿色）
+            edit_btn = ttk.Button(btn_frame, text="✏️", width=3, 
+                                 command=lambda bt=btn_text, c=cmd: self.edit_command(bt, c, "update"),
+                                 style="Edit.TButton")
+            edit_btn.pack(side=tk.RIGHT, padx=5)
             
             row += 1
         
@@ -281,6 +301,80 @@ class GitBashGUI:
         for widget in self.right_frame.winfo_children():
             widget.destroy()
         self.create_quick_commands(self.right_frame)
+    
+    def edit_command(self, btn_text, cmd, command_type):
+        """修改自定义命令"""
+        # 创建修改命令的弹窗
+        edit_window = tk.Toplevel(self.root)
+        edit_window.title("修改自定义命令")
+        edit_window.geometry("400x200")
+        edit_window.resizable(False, False)
+        
+        # 居中显示
+        edit_window.transient(self.root)
+        edit_window.grab_set()
+        
+        # 计算居中位置
+        root_x = self.root.winfo_x()
+        root_y = self.root.winfo_y()
+        root_width = self.root.winfo_width()
+        root_height = self.root.winfo_height()
+        
+        window_width = 400
+        window_height = 200
+        
+        x = root_x + (root_width - window_width) // 2
+        y = root_y + (root_height - window_height) // 2
+        
+        edit_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        # 创建输入框架
+        input_frame = ttk.Frame(edit_window, padding=(20, 20, 20, 20))
+        input_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 命令名称输入
+        ttk.Label(input_frame, text="命令名称：").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+        name_var = tk.StringVar(value=btn_text)
+        name_entry = ttk.Entry(input_frame, textvariable=name_var, width=30)
+        name_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
+        
+        # 命令内容输入
+        ttk.Label(input_frame, text="命令内容：").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
+        cmd_var = tk.StringVar(value=cmd)
+        cmd_entry = ttk.Entry(input_frame, textvariable=cmd_var, width=30)
+        cmd_entry.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
+        
+        # 按钮框架
+        btn_frame = ttk.Frame(edit_window)
+        btn_frame.pack(padx=20, pady=10, fill=tk.X)
+        
+        # 确认按钮
+        def confirm_edit():
+            new_name = name_var.get().strip()
+            new_cmd = cmd_var.get().strip()
+            if new_name and new_cmd:
+                if command_type == "create":
+                    if btn_text in self.create_commands:
+                        del self.create_commands[btn_text]
+                    self.create_commands[new_name] = new_cmd
+                else:
+                    if btn_text in self.update_commands:
+                        del self.update_commands[btn_text]
+                    self.update_commands[new_name] = new_cmd
+                edit_window.destroy()
+                # 刷新右侧面板
+                for widget in self.right_frame.winfo_children():
+                    widget.destroy()
+                self.create_quick_commands(self.right_frame)
+            else:
+                messagebox.showwarning("警告", "命令名称和内容不能为空！")
+        
+        confirm_btn = ttk.Button(btn_frame, text="确认修改", command=confirm_edit, style="Accent.TButton")
+        confirm_btn.pack(side=tk.RIGHT, padx=5)
+        
+        # 取消按钮
+        cancel_btn = ttk.Button(btn_frame, text="取消", command=edit_window.destroy)
+        cancel_btn.pack(side=tk.RIGHT, padx=5)
 
     def fill_command(self, command):
         """将快捷命令填充到自定义输入框"""
@@ -401,10 +495,39 @@ class GitBashGUI:
         except Exception as e:
             self.append_output(f"执行命令时发生异常：{str(e)}", is_error=True)
 
+    def save_commands(self):
+        """保存命令到JSON文件"""
+        commands_data = {
+            "create_commands": self.create_commands,
+            "update_commands": self.update_commands
+        }
+        try:
+            with open(self.commands_file, 'w', encoding='utf-8') as f:
+                json.dump(commands_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"保存命令失败: {str(e)}")
+    
+    def load_commands(self):
+        """从JSON文件加载命令"""
+        if os.path.exists(self.commands_file):
+            try:
+                with open(self.commands_file, 'r', encoding='utf-8') as f:
+                    commands_data = json.load(f)
+                    self.create_commands = commands_data.get("create_commands", {})
+                    self.update_commands = commands_data.get("update_commands", {})
+            except Exception as e:
+                print(f"加载命令失败: {str(e)}")
+    
+    def on_closing(self):
+        """窗口关闭事件处理"""
+        self.save_commands()
+        self.root.destroy()
+
 if __name__ == "__main__":
     root = tk.Tk()
     style = ttk.Style(root)
     style.theme_use("clam")
     style.configure("Accent.TButton", foreground="white", background="#0078d7")
+    style.configure("Edit.TButton", foreground="white", background="#28a745")  # 绿色修改按钮
     app = GitBashGUI(root)
     root.mainloop()
