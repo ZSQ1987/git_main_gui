@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext, filedialog
+from tkinter import ttk, scrolledtext, filedialog, messagebox
 import subprocess
 import os
 import sys
@@ -9,39 +9,64 @@ class GitBashGUI:
         self.root = root
         self.root.title("快速 Git Bash 工具 - Python 3.11.9 + ttk")
         
-        # 初始窗口大小（增加长宽高）
-        window_width = 900
-        window_height = 700
+        # 初始窗口大小（增加宽度以适应双栏布局）
+        window_width = 1000
+        window_height = 600
         self.root.geometry(f"{window_width}x{window_height}")
-        self.root.minsize(700, 500)    # 最小窗口大小
+        self.root.minsize(800, 500)
         
         # 计算居中位置
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
-        
-        # 设置窗口位置居中
         self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
         
-        # 初始化工作目录（默认当前目录）
+        # 初始化工作目录
         self.working_dir = os.getcwd()
         
-        # 主框架，用于更好的布局管理
+        # 初始化命令字典
+        self.create_commands = {
+            "初始化仓库 (git init)": "git init",
+            "克隆仓库 (git clone)": "git clone ",
+            "创建分支 (git checkout -b)": "git checkout -b new_branch",
+            "添加远程仓库 (git remote add)": "git remote add origin ",
+            "创建README.md": "echo '# Project Title\n\nDescription of the project.' > README.md",
+            "创建Python .gitignore": "echo '# Python\n__pycache__/\n*.py[cod]\n*$py.class\n\n# Environment\n.env\n.venv\nvenv/\nenv/\n\n# IDE\n.vscode/\n.idea/\n*.swp\n*.swo\n*~\n\n# OS\n.DS_Store\nThumbs.db' > .gitignore",
+            "创建MIT License": "echo '# MIT License\n\nCopyright (c) [year] [fullname]\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.' > LICENSE"
+        }
+        
+        self.update_commands = {
+            "查看状态 (git status)": "git status",
+            "添加所有文件 (git add .)": "git add .",
+            "提交（需补信息）": "git commit -m \"\"",
+            "推送到远程 (git push)": "git push",
+            "拉取远程代码 (git pull)": "git pull",
+            "查看分支 (git branch)": "git branch",
+            "切换分支 (git checkout)": "git checkout main",
+            "查看远程仓库 (git remote -v)": "git remote -v",
+            "首次推送 (git push -u)": "git push -u origin main",
+            "上传main分支": "git push origin main"
+        }
+        
+        # 主框架
         main_frame = ttk.Frame(self.root, padding=(10, 10, 10, 10))
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # 1. 工作目录选择区
-        self.create_dir_selector(main_frame)
+        # 左右分栏布局
+        left_frame = ttk.Frame(main_frame)
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         
-        # 2. 常用 Git 命令快捷按钮区
-        self.create_quick_commands(main_frame)
+        self.right_frame = ttk.Frame(main_frame)
+        self.right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
         
-        # 3. 自定义命令输入区
-        self.create_custom_command_area(main_frame)
+        # 左侧界面：选择目录，输入命令行，显示结果
+        self.create_dir_selector(left_frame)
+        self.create_custom_command_area(left_frame)
+        self.create_output_area(left_frame)
         
-        # 4. 命令输出显示区
-        self.create_output_area(main_frame)
+        # 右侧界面：显示自定义GUI命令
+        self.create_quick_commands(self.right_frame)
 
     def create_dir_selector(self, parent):
         """创建工作目录选择区域"""
@@ -60,10 +85,9 @@ class GitBashGUI:
         # 选择目录按钮
         select_btn = ttk.Button(frame, text="选择目录", command=self.select_working_dir)
         select_btn.pack(side=tk.RIGHT, padx=5)
-    
+
     def show_help(self):
         """显示功能说明弹窗"""
-        # 创建自定义消息框
         help_window = tk.Toplevel(self.root)
         help_window.title("📖 功能说明")
         help_window.geometry("600x400")
@@ -115,9 +139,8 @@ class GitBashGUI:
         btn_frame = ttk.Frame(help_window)
         btn_frame.pack(padx=20, pady=10, fill=tk.X)
         
-        close_btn = ttk.Button(btn_frame, text="关闭", command=help_window.destroy, style="Accent.TButton")
+        close_btn = ttk.Button(btn_frame, text="关闭", command=help_window.destroy)
         close_btn.pack(side=tk.RIGHT, padx=5)
-
 
     def select_working_dir(self):
         """选择Git命令执行的工作目录"""
@@ -134,71 +157,127 @@ class GitBashGUI:
         create_frame = ttk.LabelFrame(parent, text="📁 创建相关命令")
         create_frame.pack(padx=0, pady=5, fill=tk.X)
         
-        # 定义创建相关命令（按钮文本: 命令内容）
-        create_commands = {
-            "初始化仓库 (git init)": "git init",
-            "克隆仓库 (git clone)": "git clone ",
-            "创建分支 (git checkout -b)": "git checkout -b new_branch",
-            "添加远程仓库 (git remote add)": "git remote add origin ",
-            "创建README.md": "echo '# Project Title\n\nDescription of the project.' > README.md",
-            "创建Python .gitignore": "echo '# Python\n__pycache__/\n*.py[cod]\n*$py.class\n\n# Environment\n.env\n.venv\nvenv/\nenv/\n\n# IDE\n.vscode/\n.idea/\n*.swp\n*.swo\n*~\n\n# OS\n.DS_Store\nThumbs.db' > .gitignore",
-            "创建MIT License": "echo '# MIT License\n\nCopyright (c) [year] [fullname]\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.' > LICENSE"
-        }
-        
-        # 排版创建命令按钮（每行3个）
+        # 排版创建命令按钮（每行2个）
         row, col = 0, 0
-        for btn_text, cmd in create_commands.items():
+        for btn_text, cmd in self.create_commands.items():
             btn = ttk.Button(create_frame, text=btn_text, 
-                             command=lambda c=cmd: self.fill_command(c))
+                             command=lambda c=cmd: self.fill_command(c),
+                             width=20)  # 固定按钮宽度
             btn.grid(row=row, column=col, padx=5, pady=5, sticky=tk.W+tk.E)
             col += 1
-            if col >= 3:
+            if col >= 2:
                 col = 0
                 row += 1
         
         # 让列自适应宽度
-        for i in range(3):
+        for i in range(2):
             create_frame.grid_columnconfigure(i, weight=1)
+        
+        # 添加命令按钮
+        add_create_btn = ttk.Button(create_frame, text="添加命令", command=lambda: self.add_custom_command("create"))
+        add_create_btn.grid(row=row, column=0, columnspan=2, padx=5, pady=5, sticky=tk.W+tk.E)
         
         # 更新命令区域
         update_frame = ttk.LabelFrame(parent, text="🔄 更新相关命令")
         update_frame.pack(padx=0, pady=5, fill=tk.X)
         
-        # 定义更新相关命令（按钮文本: 命令内容）
-        update_commands = {
-            "查看状态 (git status)": "git status",
-            "添加所有文件 (git add .)": "git add .",
-            "提交（需补信息）": "git commit -m \"\"",
-            "推送到远程 (git push)": "git push",
-            "拉取远程代码 (git pull)": "git pull",
-            "查看分支 (git branch)": "git branch",
-            "切换分支 (git checkout)": "git checkout main",
-            "查看远程仓库 (git remote -v)": "git remote -v",
-            "首次推送 (git push -u)": "git push -u origin main",
-            "上传main分支": "git push origin main"
-        }
-        
-        # 排版更新命令按钮（每行3个）
+        # 排版更新命令按钮（每行2个）
         row, col = 0, 0
-        for btn_text, cmd in update_commands.items():
+        for btn_text, cmd in self.update_commands.items():
             btn = ttk.Button(update_frame, text=btn_text, 
-                             command=lambda c=cmd: self.fill_command(c))
+                             command=lambda c=cmd: self.fill_command(c),
+                             width=20)  # 固定按钮宽度
             btn.grid(row=row, column=col, padx=5, pady=5, sticky=tk.W+tk.E)
             col += 1
-            if col >= 3:
+            if col >= 2:
                 col = 0
                 row += 1
         
         # 让列自适应宽度
-        for i in range(3):
+        for i in range(2):
             update_frame.grid_columnconfigure(i, weight=1)
+        
+        # 添加命令按钮
+        add_update_btn = ttk.Button(update_frame, text="添加命令", command=lambda: self.add_custom_command("update"))
+        add_update_btn.grid(row=row, column=0, columnspan=2, padx=5, pady=5, sticky=tk.W+tk.E)
+
+    def add_custom_command(self, command_type):
+        """添加自定义命令"""
+        # 创建添加命令的弹窗
+        add_window = tk.Toplevel(self.root)
+        add_window.title("添加自定义命令")
+        add_window.geometry("400x200")
+        add_window.resizable(False, False)
+        
+        # 居中显示
+        add_window.transient(self.root)
+        add_window.grab_set()
+        
+        # 计算居中位置
+        root_x = self.root.winfo_x()
+        root_y = self.root.winfo_y()
+        root_width = self.root.winfo_width()
+        root_height = self.root.winfo_height()
+        
+        window_width = 400
+        window_height = 200
+        
+        x = root_x + (root_width - window_width) // 2
+        y = root_y + (root_height - window_height) // 2
+        
+        add_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        # 创建输入框架
+        input_frame = ttk.Frame(add_window, padding=(20, 20, 20, 20))
+        input_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 命令名称输入
+        ttk.Label(input_frame, text="命令名称：").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+        name_var = tk.StringVar()
+        name_entry = ttk.Entry(input_frame, textvariable=name_var, width=30)
+        name_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
+        
+        # 命令内容输入
+        ttk.Label(input_frame, text="命令内容：").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
+        cmd_var = tk.StringVar()
+        cmd_entry = ttk.Entry(input_frame, textvariable=cmd_var, width=30)
+        cmd_entry.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
+        
+        # 按钮框架
+        btn_frame = ttk.Frame(add_window)
+        btn_frame.pack(padx=20, pady=10, fill=tk.X)
+        
+        # 确认按钮
+        def confirm_add():
+            name = name_var.get().strip()
+            cmd = cmd_var.get().strip()
+            if name and cmd:
+                if command_type == "create":
+                    self.create_commands[name] = cmd
+                else:
+                    self.update_commands[name] = cmd
+                add_window.destroy()
+                # 重新创建命令按钮
+                # 刷新右侧面板
+                for widget in self.right_frame.winfo_children():
+                    widget.destroy()
+                self.create_quick_commands(self.right_frame)
+            else:
+                messagebox.showwarning("警告", "命令名称和内容不能为空！")
+        
+        confirm_btn = ttk.Button(btn_frame, text="确认添加", command=confirm_add, style="Accent.TButton")
+        confirm_btn.pack(side=tk.RIGHT, padx=5)
+        
+        # 取消按钮
+        cancel_btn = ttk.Button(btn_frame, text="取消", command=add_window.destroy)
+        cancel_btn.pack(side=tk.RIGHT, padx=5)
 
     def fill_command(self, command):
         """将快捷命令填充到自定义输入框"""
         self.cmd_text.delete(1.0, tk.END)
         self.cmd_text.insert(tk.END, command)
         # 若为commit命令，将光标定位到引号中间
-        if "git commit -m \"\"" in command:
+        if "git commit -m """ in command:
             self.cmd_text.focus()
             self.cmd_text.icursor(len("git commit -m \"") )
 
@@ -231,7 +310,7 @@ class GitBashGUI:
         # 滚动文本框
         self.output_text = scrolledtext.ScrolledText(frame, font=("Consolas", 9), wrap=tk.WORD, height=20)
         self.output_text.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
-        self.output_text.config(state=tk.DISABLED)  # 初始设为只读
+        self.output_text.config(state=tk.DISABLED)
         
         # 清空输出按钮
         clear_output_btn = ttk.Button(frame, text="清空输出", command=self.clear_output)
@@ -240,14 +319,13 @@ class GitBashGUI:
     def append_output(self, text, is_error=False):
         """向输出区追加文本（区分正常/错误信息）"""
         self.output_text.config(state=tk.NORMAL)
-        # 错误信息标红，正常信息黑色
         if is_error:
             self.output_text.insert(tk.END, f"❌ {text}\n", "error")
         else:
             self.output_text.insert(tk.END, f"✅ {text}\n", "normal")
         self.output_text.tag_config("error", foreground="red")
         self.output_text.tag_config("normal", foreground="black")
-        self.output_text.see(tk.END)  # 自动滚动到末尾
+        self.output_text.see(tk.END)
         self.output_text.config(state=tk.DISABLED)
 
     def clear_output(self):
@@ -264,7 +342,6 @@ class GitBashGUI:
             return
         
         # 拼接Git Bash执行命令（Windows下）
-        # 尝试多个可能的Git Bash安装位置
         possible_paths = [
             "C:\\Program Files\\Git\\bin\\bash.exe",
             "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
@@ -278,30 +355,27 @@ class GitBashGUI:
                 git_bash_path = path
                 break
         
-        # 如果没找到，尝试使用环境变量中的bash.exe
         if not git_bash_path:
             git_bash_path = "bash.exe"
         
         try:
-            self.append_output(f"开始执行命令：{command}（工作目录：{self.working_dir}）", is_error=False)
+            self.append_output(f"开始执行命令：{command}（工作目录：{self.working_dir}")
             # 执行命令并捕获输出
             result = subprocess.run(
                 [git_bash_path, "-c", command],
                 cwd=self.working_dir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE,
                 encoding="utf-8",
-                timeout=30  # 超时时间30秒
+                timeout=30
             )
-            # 显示正常输出
             if result.stdout:
-                self.append_output(f"执行结果：\n{result.stdout}", is_error=False)
-            # 显示错误输出
+                self.append_output(f"执行结果：\n{result.stdout}")
             if result.stderr:
                 self.append_output(f"错误信息：\n{result.stderr}", is_error=True)
-            # 显示执行状态
             if result.returncode == 0:
-                self.append_output(f"命令执行成功！返回码：{result.returncode}", is_error=False)
+                self.append_output(f"命令执行成功！返回码：{result.returncode}")
             else:
                 self.append_output(f"命令执行失败！返回码：{result.returncode}", is_error=True)
         except subprocess.TimeoutExpired:
@@ -317,12 +391,9 @@ class GitBashGUI:
             self.append_output(f"执行命令时发生异常：{str(e)}", is_error=True)
 
 if __name__ == "__main__":
-    # 设置tkinter样式
     root = tk.Tk()
     style = ttk.Style(root)
-    style.theme_use("clam")  # 美观的样式（兼容不同系统）
-    # 自定义按钮样式
+    style.theme_use("clam")
     style.configure("Accent.TButton", foreground="white", background="#0078d7")
-    # 启动GUI
     app = GitBashGUI(root)
     root.mainloop()
