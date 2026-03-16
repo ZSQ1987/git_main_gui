@@ -395,6 +395,9 @@ class GitBashGUI:
         self.cmd_text = tk.Text(frame, font=("Consolas", 10), height=4, wrap=tk.WORD)
         self.cmd_text.pack(padx=5, pady=5, fill=tk.X, expand=True)
         
+        # 绑定回车键执行命令
+        self.cmd_text.bind("<Return>", lambda event: self.execute_command())
+        
         # 按钮容器
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(padx=5, pady=0, fill=tk.X)
